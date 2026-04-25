@@ -8,6 +8,7 @@
 */
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "tcpip_adapter.h"
@@ -17,7 +18,12 @@
 #include "driver/gpio.h"
 #include "sdkconfig.h"
 
+#include "rotor_encoder.h"
+#include "motor_control.h"
+#include "mqtt_control.h"
+
 static const char *TAG = "eth_example";
+static bool s_mqtt_started = false;
 
 /** Event handler for Ethernet events */
 static void eth_event_handler(void *arg, esp_event_base_t event_base,
@@ -61,10 +67,18 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
     ESP_LOGI(TAG, "~~~~~~~~~~~");
+
+    if (!s_mqtt_started) {
+        ESP_ERROR_CHECK(mqtt_control_start());
+        s_mqtt_started = true;
+    }
 }
 
 void app_main()
 {
+    ESP_ERROR_CHECK(rotor_encoder_init());
+    ESP_ERROR_CHECK(motor_control_init());
+
     tcpip_adapter_init();
 
     ESP_ERROR_CHECK(esp_event_loop_create_default());

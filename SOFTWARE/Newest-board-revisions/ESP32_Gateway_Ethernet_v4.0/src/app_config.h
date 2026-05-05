@@ -9,7 +9,8 @@
 #define APP_PIN_ENCODER_A            GPIO_NUM_32
 #define APP_PIN_ENCODER_B            GPIO_NUM_33
 #define APP_PIN_ENCODER_INDEX        GPIO_NUM_35
-#define APP_PIN_MOSFET_PWM           GPIO_NUM_25
+#define APP_PIN_DRIVER_PWM_A         GPIO_NUM_25
+#define APP_PIN_DRIVER_PWM_B         GPIO_NUM_26
 
 /* AMT10 setup */
 #define APP_ENCODER_PPR              1024
@@ -17,10 +18,18 @@
 #define APP_ENCODER_USE_INDEX        1
 #define APP_ENCODER_SPEED_PERIOD_MS  50
 
+#define APP_PWM_CARRIER_HZ           1000
+#define APP_PWM_SINE_HZ              50
 /* PWM output to MOSFET gate driver */
-#define APP_PWM_FREQUENCY_HZ         20000
+#define APP_PWM_FREQUENCY_HZ         APP_PWM_CARRIER_HZ
 #define APP_PWM_DUTY_MAX_PERCENT     100.0f
 #define APP_PWM_DUTY_MIN_PERCENT     0.0f
+
+/* Position / setup behavior */
+#define APP_POSITION_LIMIT_DEG       180.0f
+#define APP_POSITION_TOLERANCE_DEG   2.0f
+#define APP_POSITION_KP              0.02f
+#define APP_POSITION_MAX_RPS         5.0f
 
 /* Lightweight PID setup */
 #define APP_PID_PERIOD_MS            20
@@ -36,3 +45,4 @@
 #define APP_MQTT_PASSWORD            ""
 #define APP_MQTT_TOPIC_PREFIX        "gateway/motor"
 #define APP_MQTT_STATUS_PERIOD_MS    1000
+#define APP_NETWORK_FAILSAFE_MS      500

@@ -1,37 +1,27 @@
-/* Ethernet Basic Example
-
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-#include <stdio.h>
-#include <string.h>
 #include <stdbool.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "tcpip_adapter.h"
 #include "esp_eth.h"
 #include "esp_event.h"
 #include "esp_log.h"
-#include "driver/gpio.h"
-#include "sdkconfig.h"
 
-#include "rotor_encoder.h"
-#include "motor_control.h"
-#include "mqtt_control.h"
+#include "app_config.h"
+#include "network/ethernet/ethernet.h"
 
-static const char *TAG = "eth_example";
-static bool s_mqtt_started = false;
+static const char *TAG = "ethernet";
+static bool s_link_up = false;
+static bool s_ip_up = false;
+static bool s_started = false;
 
-/** Event handler for Ethernet events */
-static void eth_event_handler(void *arg, esp_event_base_t event_base,
-                              int32_t event_id, void *event_data)
+static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     uint8_t mac_addr[6] = {0};
-    /* we can get the ethernet driver handle from event data */
     esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
+
+    (void)arg;
+    (void)event_base;
 
     switch (event_id) {
     case ETHERNET_EVENT_CONNECTED:
@@ -39,58 +29,51 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
         ESP_LOGI(TAG, "Ethernet Link Up");
         ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
                  mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+        s_link_up = true;
         break;
     case ETHERNET_EVENT_DISCONNECTED:
-        ESP_LOGI(TAG, "Ethernet Link Down");
+        ESP_LOGW(TAG, "Ethernet Link Down");
+        s_link_up = false;
+        s_ip_up = false;
         break;
     case ETHERNET_EVENT_START:
         ESP_LOGI(TAG, "Ethernet Started");
         break;
     case ETHERNET_EVENT_STOP:
-        ESP_LOGI(TAG, "Ethernet Stopped");
+        ESP_LOGW(TAG, "Ethernet Stopped");
+        s_link_up = false;
+        s_ip_up = false;
         break;
     default:
         break;
     }
 }
 
-/** Event handler for IP_EVENT_ETH_GOT_IP */
-static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
-                                 int32_t event_id, void *event_data)
+static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
+    ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
     const tcpip_adapter_ip_info_t *ip_info = &event->ip_info;
 
+    (void)arg;
+    (void)event_base;
+    (void)event_id;
+
     ESP_LOGI(TAG, "Ethernet Got IP Address");
-    ESP_LOGI(TAG, "~~~~~~~~~~~");
     ESP_LOGI(TAG, "ETHIP:" IPSTR, IP2STR(&ip_info->ip));
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
-    ESP_LOGI(TAG, "~~~~~~~~~~~");
 
-    if (!s_mqtt_started) {
-        ESP_ERROR_CHECK(mqtt_control_start());
-        s_mqtt_started = true;
-    }
+    s_ip_up = true;
 }
 
-void app_main()
+static esp_err_t start_ethernet(void)
 {
-    ESP_ERROR_CHECK(rotor_encoder_init());
-    ESP_ERROR_CHECK(motor_control_init());
-
-    tcpip_adapter_init();
-
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    ESP_ERROR_CHECK(tcpip_adapter_set_default_eth_handlers());
-    ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
-
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
     phy_config.phy_addr = CONFIG_EXAMPLE_ETH_PHY_ADDR;
     phy_config.reset_gpio_num = CONFIG_EXAMPLE_ETH_PHY_RST_GPIO;
     vTaskDelay(pdMS_TO_TICKS(10));
+
 #if CONFIG_EXAMPLE_USE_INTERNAL_ETHERNET
     mac_config.smi_mdc_gpio_num = CONFIG_EXAMPLE_ETH_MDC_GPIO;
     mac_config.smi_mdio_gpio_num = CONFIG_EXAMPLE_ETH_MDIO_GPIO;
@@ -121,17 +104,45 @@ void app_main()
         .mode = 0,
         .clock_speed_hz = CONFIG_EXAMPLE_DM9051_SPI_CLOCK_MHZ * 1000 * 1000,
         .spics_io_num = CONFIG_EXAMPLE_DM9051_CS_GPIO,
-        .queue_size = 20
+        .queue_size = 20,
     };
     ESP_ERROR_CHECK(spi_bus_add_device(CONFIG_EXAMPLE_DM9051_SPI_HOST, &devcfg, &spi_handle));
-    /* dm9051 ethernet driver is based on spi driver */
     eth_dm9051_config_t dm9051_config = ETH_DM9051_DEFAULT_CONFIG(spi_handle);
     dm9051_config.int_gpio_num = CONFIG_EXAMPLE_DM9051_INT_GPIO;
     esp_eth_mac_t *mac = esp_eth_mac_new_dm9051(&dm9051_config, &mac_config);
     esp_eth_phy_t *phy = esp_eth_phy_new_dm9051(&phy_config);
 #endif
+
     esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
     esp_eth_handle_t eth_handle = NULL;
     ESP_ERROR_CHECK(esp_eth_driver_install(&config, &eth_handle));
     ESP_ERROR_CHECK(esp_eth_start(eth_handle));
+    return ESP_OK;
+}
+
+esp_err_t ethernet_init(void)
+{
+    if (s_started) {
+        return ESP_OK;
+    }
+
+    tcpip_adapter_init();
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    ESP_ERROR_CHECK(tcpip_adapter_set_default_eth_handlers());
+    ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
+    ESP_ERROR_CHECK(start_ethernet());
+
+    s_started = true;
+    return ESP_OK;
+}
+
+bool ethernet_is_link_up(void)
+{
+    return s_link_up;
+}
+
+bool ethernet_is_ip_up(void)
+{
+    return s_ip_up;
 }

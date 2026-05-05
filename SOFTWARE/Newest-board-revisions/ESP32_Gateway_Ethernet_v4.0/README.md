@@ -1,4 +1,5 @@
 # Ethernet Example
+
 (See the README.md file in the upper level 'examples' directory for more information about examples.)
 
 ## Overview
@@ -21,7 +22,7 @@ Notice that Olimex board uses LAN8710 chip but the libraries for LAN8710 and LAN
 
 Besides that, esp_eth component can drive third-party Ethernet module which integrates MAC and PHY and provides common communication interface (e.g. SPI, USB, etc).This example will take the LAN8720 library for the an example, illustrating how to install the Ethernet driver in the same manner. In this project by default this feature is disabled. If you want to enable it:
 
-```
+```bash
 idf.py menuconfig
 ```
 
@@ -29,7 +30,7 @@ then option and navigate to "Component config -> Ethernet" and check the "Suppor
 
 ### Configure the project
 
-```
+```bash
 idf.py menuconfig
 ```
 
@@ -39,7 +40,7 @@ See common configurations for Ethernet examples from [upper level](../../README.
 
 Build the project and flash it to the board, then run monitor tool to view serial output:
 
-```
+```bash
 idf.py -p PORT build flash monitor
 ```
 
@@ -69,3 +70,12 @@ Now you can ping your ESP32 in the terminal by entering `ping 192.168.2.151` (it
 ## Troubleshooting
 
 For any technical queries, please open an [issue](https://github.com/OLIMEX/ESP32-GATEWAY/issues) on GitHub. We will get back to you as soon as possible.
+
+## Runtime Smoke Checklist (MQTT + Position Control)
+
+1. Bring Ethernet up and confirm status payload contains `link_up=1` and `ip_up=1` on `gateway/motor/status`.
+2. Publish `1` to `gateway/motor/cmd/enable` and verify `enabled=1` in status.
+3. Publish `1` to `gateway/motor/cmd/setup`, then publish a small angle to `gateway/motor/cmd/target_angle_deg` (for example `15`) and verify `pos_mode=1`.
+4. Publish a larger angle than current limit to `gateway/motor/cmd/target_angle_deg` and verify `limit_hit=1` and `gateway/motor/event/limit` is emitted once.
+5. Disconnect Ethernet and verify output is disabled (`enabled=0`) and MQTT disconnects.
+6. Reconnect Ethernet and verify MQTT reconnects and status updates resume.

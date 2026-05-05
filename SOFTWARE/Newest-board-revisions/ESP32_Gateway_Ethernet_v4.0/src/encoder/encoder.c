@@ -7,18 +7,16 @@
 #include "esp_log.h"
 
 #include "app_config.h"
-#include "rotor_encoder.h"
+#include "encoder/encoder.h"
 
-static const char *TAG = "rotor_encoder";
+static const char *TAG = "encoder";
 
 static volatile int32_t s_count = 0;
 static volatile bool s_index_seen = false;
 static volatile uint8_t s_prev_ab = 0;
 static float s_speed_rps = 0.0f;
-
 static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
 
-/* Transition table for quadrature decode: index = (prev_state << 2) | curr_state */
 static const int8_t s_qdec_lut[16] = {
     0, -1, +1, 0,
     +1, 0, 0, -1,
@@ -36,13 +34,11 @@ static inline uint8_t read_ab_state(void)
 static void IRAM_ATTR encoder_ab_isr(void *arg)
 {
     (void)arg;
-
     uint8_t curr = read_ab_state();
     uint8_t idx = (uint8_t)((s_prev_ab << 2) | curr);
-    int8_t delta = s_qdec_lut[idx];
 
     portENTER_CRITICAL_ISR(&s_lock);
-    s_count += delta;
+    s_count += s_qdec_lut[idx];
     s_prev_ab = curr;
     portEXIT_CRITICAL_ISR(&s_lock);
 }
@@ -58,14 +54,12 @@ static void IRAM_ATTR encoder_index_isr(void *arg)
 static void speed_task(void *arg)
 {
     (void)arg;
-
-    int32_t last_count = rotor_encoder_get_count();
+    int32_t last_count = encoder_get_count();
     const float dt_s = (float)APP_ENCODER_SPEED_PERIOD_MS / 1000.0f;
 
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(APP_ENCODER_SPEED_PERIOD_MS));
-
-        int32_t now_count = rotor_encoder_get_count();
+        int32_t now_count = encoder_get_count();
         int32_t delta = now_count - last_count;
         last_count = now_count;
 
@@ -77,7 +71,7 @@ static void speed_task(void *arg)
     }
 }
 
-esp_err_t rotor_encoder_init(void)
+esp_err_t encoder_init(void)
 {
     gpio_config_t io_cfg = {
         .intr_type = GPIO_INTR_ANYEDGE,
@@ -113,12 +107,11 @@ esp_err_t rotor_encoder_init(void)
 #endif
 
     xTaskCreate(speed_task, "enc_speed", 2048, NULL, 5, NULL);
-
     ESP_LOGI(TAG, "Encoder initialized (PPR=%d, CPR=%d)", APP_ENCODER_PPR, APP_ENCODER_CPR);
     return ESP_OK;
 }
 
-int32_t rotor_encoder_get_count(void)
+int32_t encoder_get_count(void)
 {
     int32_t value;
     portENTER_CRITICAL(&s_lock);
@@ -127,7 +120,7 @@ int32_t rotor_encoder_get_count(void)
     return value;
 }
 
-float rotor_encoder_get_speed_rps(void)
+float encoder_get_speed_rps(void)
 {
     float value;
     portENTER_CRITICAL(&s_lock);
@@ -136,7 +129,7 @@ float rotor_encoder_get_speed_rps(void)
     return value;
 }
 
-void rotor_encoder_reset_count(void)
+void encoder_reset_count(void)
 {
     portENTER_CRITICAL(&s_lock);
     s_count = 0;
@@ -145,7 +138,7 @@ void rotor_encoder_reset_count(void)
     portEXIT_CRITICAL(&s_lock);
 }
 
-bool rotor_encoder_is_index_seen(void)
+bool encoder_is_index_seen(void)
 {
     bool seen;
     portENTER_CRITICAL(&s_lock);

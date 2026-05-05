@@ -11,5 +11,6 @@ idf_component_register(SRCS
                        "driver"
                        "network/ethernet"
                        "network/mqtt"
-                       "network")
+                       "network"
+                       REQUIRES driver esp_netif esp_eth)
 

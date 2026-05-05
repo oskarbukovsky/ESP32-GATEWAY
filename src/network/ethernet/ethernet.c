@@ -2,7 +2,8 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "tcpip_adapter.h"
+#include "esp_netif.h"
+#include "esp_eth_netif_glue.h"
 #include "esp_eth.h"
 #include "esp_event.h"
 #include "esp_log.h"
@@ -14,6 +15,8 @@ static const char *TAG = "ethernet";
 static bool s_link_up = false;
 static bool s_ip_up = false;
 static bool s_started = false;
+static esp_netif_t *s_eth_netif = NULL;
+static esp_eth_netif_glue_handle_t s_eth_glue = NULL;
 
 static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
@@ -52,7 +55,7 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t ev
 static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-    const tcpip_adapter_ip_info_t *ip_info = &event->ip_info;
+    const esp_netif_ip_info_t *ip_info = &event->ip_info;
 
     (void)arg;
     (void)event_base;
@@ -75,9 +78,12 @@ static esp_err_t start_ethernet(void)
     vTaskDelay(pdMS_TO_TICKS(10));
 
 #if CONFIG_EXAMPLE_USE_INTERNAL_ETHERNET
+    eth_esp32_emac_config_t esp32_emac_config = ETH_ESP32_EMAC_DEFAULT_CONFIG();
     mac_config.smi_mdc_gpio_num = CONFIG_EXAMPLE_ETH_MDC_GPIO;
     mac_config.smi_mdio_gpio_num = CONFIG_EXAMPLE_ETH_MDIO_GPIO;
-    esp_eth_mac_t *mac = esp_eth_mac_new_esp32(&mac_config);
+    esp32_emac_config.smi_mdc_gpio_num = CONFIG_EXAMPLE_ETH_MDC_GPIO;
+    esp32_emac_config.smi_mdio_gpio_num = CONFIG_EXAMPLE_ETH_MDIO_GPIO;
+    esp_eth_mac_t *mac = esp_eth_mac_new_esp32(&esp32_emac_config, &mac_config);
 #if CONFIG_EXAMPLE_ETH_PHY_IP101
     esp_eth_phy_t *phy = esp_eth_phy_new_ip101(&phy_config);
 #elif CONFIG_EXAMPLE_ETH_PHY_RTL8201
@@ -89,7 +95,6 @@ static esp_err_t start_ethernet(void)
 #endif
 #elif CONFIG_EXAMPLE_USE_DM9051
     gpio_install_isr_service(0);
-    spi_device_handle_t spi_handle = NULL;
     spi_bus_config_t buscfg = {
         .miso_io_num = CONFIG_EXAMPLE_DM9051_MISO_GPIO,
         .mosi_io_num = CONFIG_EXAMPLE_DM9051_MOSI_GPIO,
@@ -99,15 +104,12 @@ static esp_err_t start_ethernet(void)
     };
     ESP_ERROR_CHECK(spi_bus_initialize(CONFIG_EXAMPLE_DM9051_SPI_HOST, &buscfg, 1));
     spi_device_interface_config_t devcfg = {
-        .command_bits = 1,
-        .address_bits = 7,
         .mode = 0,
         .clock_speed_hz = CONFIG_EXAMPLE_DM9051_SPI_CLOCK_MHZ * 1000 * 1000,
         .spics_io_num = CONFIG_EXAMPLE_DM9051_CS_GPIO,
         .queue_size = 20,
     };
-    ESP_ERROR_CHECK(spi_bus_add_device(CONFIG_EXAMPLE_DM9051_SPI_HOST, &devcfg, &spi_handle));
-    eth_dm9051_config_t dm9051_config = ETH_DM9051_DEFAULT_CONFIG(spi_handle);
+    eth_dm9051_config_t dm9051_config = ETH_DM9051_DEFAULT_CONFIG(CONFIG_EXAMPLE_DM9051_SPI_HOST, &devcfg);
     dm9051_config.int_gpio_num = CONFIG_EXAMPLE_DM9051_INT_GPIO;
     esp_eth_mac_t *mac = esp_eth_mac_new_dm9051(&dm9051_config, &mac_config);
     esp_eth_phy_t *phy = esp_eth_phy_new_dm9051(&phy_config);
@@ -116,6 +118,21 @@ static esp_err_t start_ethernet(void)
     esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
     esp_eth_handle_t eth_handle = NULL;
     ESP_ERROR_CHECK(esp_eth_driver_install(&config, &eth_handle));
+
+    if (s_eth_netif == NULL) {
+        esp_netif_config_t netif_config = ESP_NETIF_DEFAULT_ETH();
+        s_eth_netif = esp_netif_new(&netif_config);
+        if (s_eth_netif == NULL) {
+            return ESP_FAIL;
+        }
+    }
+
+    s_eth_glue = esp_eth_new_netif_glue(eth_handle);
+    if (s_eth_glue == NULL) {
+        return ESP_FAIL;
+    }
+
+    ESP_ERROR_CHECK(esp_netif_attach(s_eth_netif, s_eth_glue));
     ESP_ERROR_CHECK(esp_eth_start(eth_handle));
     return ESP_OK;
 }
@@ -126,9 +143,8 @@ esp_err_t ethernet_init(void)
         return ESP_OK;
     }
 
-    tcpip_adapter_init();
+    ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    ESP_ERROR_CHECK(tcpip_adapter_set_default_eth_handlers());
     ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
     ESP_ERROR_CHECK(start_ethernet());

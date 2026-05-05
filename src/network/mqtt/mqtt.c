@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
@@ -31,6 +32,10 @@ static SemaphoreHandle_t s_mqtt_lock = NULL;
 static TaskHandle_t s_reconnect_task = NULL;
 static uint32_t s_reconnect_delay_ms = 1000; /* start 1s */
 static const uint32_t MQTT_RECONNECT_MAX_MS = 60000; /* 60s */
+
+static void mqtt_reconnect_task(void *arg);
+static void set_mqtt_up(bool v);
+static bool get_mqtt_up(void);
 
 static void build_topic(char *out, size_t out_size, const char *suffix)
 {
@@ -261,9 +266,9 @@ static esp_err_t ensure_client(void)
     mqtt_config_get_credentials(&cfg_user, &cfg_pass);
 
     esp_mqtt_client_config_t mqtt_cfg = {
-        .uri = APP_MQTT_BROKER_URI,
-        .username = cfg_user ? cfg_user : APP_MQTT_USERNAME,
-        .password = cfg_pass ? cfg_pass : APP_MQTT_PASSWORD,
+        .broker.address.uri = APP_MQTT_BROKER_URI,
+        .credentials.username = cfg_user ? cfg_user : APP_MQTT_USERNAME,
+        .credentials.authentication.password = cfg_pass ? cfg_pass : APP_MQTT_PASSWORD,
     };
 
     s_mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
@@ -287,7 +292,7 @@ static void mqtt_reconnect_task(void *arg)
     (void)arg;
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(s_reconnect_delay_ms));
-        ESP_LOGI(TAG, "Attempting MQTT reconnect (delay %u ms)", s_reconnect_delay_ms);
+        ESP_LOGI(TAG, "Attempting MQTT reconnect (delay %" PRIu32 " ms)", s_reconnect_delay_ms);
         esp_err_t r = esp_mqtt_client_reconnect(s_mqtt_client);
         if (r == ESP_OK) {
             /* reconnect will cause CONNECTED event handler to run */
@@ -295,16 +300,13 @@ static void mqtt_reconnect_task(void *arg)
         }
         /* increase delay exponentially */
         s_reconnect_delay_ms = s_reconnect_delay_ms * 2;
-        if (s_reconnect_delay_ms > MQTT_RECONNECT_MAX_MS) s_reconnect_delay_ms = MQTT_RECONNECT_MAX_MS;
+        if (s_reconnect_delay_ms > MQTT_RECONNECT_MAX_MS) {
+            s_reconnect_delay_ms = MQTT_RECONNECT_MAX_MS;
+        }
     }
     /* mark task handle cleared and exit */
     s_reconnect_task = NULL;
     vTaskDelete(NULL);
-}
-    s_reconnect_task = NULL;
-    vTaskDelete(NULL);
-}
-    return ESP_OK;
 }
 
 esp_err_t mqtt_start(void)

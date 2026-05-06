@@ -21,6 +21,8 @@
 #include "network/mqtt/mqtt_config.h"
 #include "freertos/semphr.h"
 
+extern const char emqxsl_ca_crt_start[] asm("_binary_emqxsl_ca_crt_start");
+
 static const char *TAG = "mqtt";
 static esp_mqtt_client_handle_t s_mqtt_client = NULL;
 static bool s_mqtt_up = false;
@@ -352,6 +354,7 @@ static esp_err_t ensure_client(void)
 
     esp_mqtt_client_config_t mqtt_cfg = {
         .broker.address.uri = APP_MQTT_BROKER_URI,
+        .broker.verification.certificate = emqxsl_ca_crt_start,
         .credentials.username = cfg_user ? cfg_user : APP_MQTT_USERNAME,
         .credentials.authentication.password = cfg_pass ? cfg_pass : APP_MQTT_PASSWORD,
     };

@@ -40,7 +40,7 @@
 #define APP_PID_I_MAX                30.0f
 
 /* MQTT setup */
-#define APP_MQTT_BROKER_URI          "mqtt://192.168.1.100:1883"
+#define APP_MQTT_BROKER_URI          "mqtts://l9f0a4f9.ala.eu-central-1.emqxsl.com:8883"
 #define APP_MQTT_USERNAME            ""
 #define APP_MQTT_PASSWORD            ""
 #define APP_MQTT_TOPIC_PREFIX        "gateway/motor"

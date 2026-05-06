@@ -26,10 +26,16 @@ except ImportError:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Read ESP logs from serial port")
     parser.add_argument("--port", help="Serial port, e.g. COM5 or /dev/ttyUSB0")
-    parser.add_argument("--baud", type=int, default=115200, help="Baud rate (default: 115200)")
-    parser.add_argument("--timeout", type=float, default=0.2, help="Read timeout in seconds")
+    parser.add_argument(
+        "--baud", type=int, default=115200, help="Baud rate (default: 115200)"
+    )
+    parser.add_argument(
+        "--timeout", type=float, default=0.2, help="Read timeout in seconds"
+    )
     parser.add_argument("--log", help="Optional log file path")
-    parser.add_argument("--list", action="store_true", help="List serial ports and exit")
+    parser.add_argument(
+        "--list", action="store_true", help="List serial ports and exit"
+    )
     parser.add_argument(
         "--reconnect-delay",
         type=float,
@@ -65,10 +71,9 @@ def choose_port(cli_port: str | None) -> str:
     return ports[0].device
 
 
-
-
-
-def run_reader(port: str, baud: int, timeout: float, log_path: str | None, reconnect_delay: float) -> None:
+def run_reader(
+    port: str, baud: int, timeout: float, log_path: str | None, reconnect_delay: float
+) -> None:
     log_file = open(log_path, "a", encoding="utf-8") if log_path else None
 
     try:

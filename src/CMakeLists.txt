@@ -12,5 +12,6 @@ idf_component_register(SRCS
                        "network/ethernet"
                        "network/mqtt"
                        "network"
+                       EMBED_TXTFILES "../emqxsl-ca.crt"
                        REQUIRES driver esp_netif esp_eth mqtt lwip)
 

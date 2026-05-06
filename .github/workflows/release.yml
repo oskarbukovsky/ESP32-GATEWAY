@@ -19,9 +19,6 @@ jobs:
           esp_idf_version: v5.0
           target: esp32
 
-      - name: Build project
-        run: idf.py build
-
       - name: Create GitHub release
         id: create_release
         uses: softprops/action-gh-release@v1

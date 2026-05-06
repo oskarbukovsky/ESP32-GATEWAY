@@ -2,3 +2,4 @@ firmware
 esp-idf
 build
 __pychache__
+logs

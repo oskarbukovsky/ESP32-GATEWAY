@@ -69,7 +69,7 @@ def choose_port(cli_port: str | None) -> str:
 
 
 def run_reader(port: str, baud: int, timeout: float, use_ts: bool, log_path: str | None, reconnect_delay: float) -> None:
-    log_file = open(log_path, "a", encoding="utf-8") se None
+    log_file = open(log_path, "a", encoding="utf-8") if log_path else None
 
     try:
         while True:
@@ -87,8 +87,8 @@ def run_reader(port: str, baud: int, timeout: float, use_ts: bool, log_path: str
                     print(line, flush=True)
 
                     if log_file:
-                        log_file.write(out + "\n")
-                        log_file.flush(line
+                        log_file.write(line + "\n")
+                        log_file.flush()
 
             except serial.SerialException as exc:
                 print(f"Serial error: {exc}")
@@ -118,6 +118,7 @@ def main() -> None:
         baud=args.baud,
         timeout=args.timeout,
         use_ts=not args.no_ts,
+        log_path=args.log,
         reconnect_delay=args.reconnect_delay,
     )
 

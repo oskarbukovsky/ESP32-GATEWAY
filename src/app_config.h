@@ -46,3 +46,4 @@
 #define APP_MQTT_TOPIC_PREFIX        "gateway/motor"
 #define APP_MQTT_STATUS_PERIOD_MS    1000
 #define APP_NETWORK_FAILSAFE_MS      500
+#define APP_LOG_PING_PERIOD_MS       10000

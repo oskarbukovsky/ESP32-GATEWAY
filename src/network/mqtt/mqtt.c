@@ -4,11 +4,13 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "mqtt_client.h"
 
 #include "app_config.h"
@@ -36,6 +38,45 @@ static const uint32_t MQTT_RECONNECT_MAX_MS = 60000; /* 60s */
 static void mqtt_reconnect_task(void *arg);
 static void set_mqtt_up(bool v);
 static bool get_mqtt_up(void);
+
+static void log_payload_preview(const char *prefix, const char *topic, const char *payload, int payload_len)
+{
+    char payload_buf[96];
+    int copy_len = payload_len;
+    if (copy_len > (int)(sizeof(payload_buf) - 1)) {
+        copy_len = (int)sizeof(payload_buf) - 1;
+    }
+    if (copy_len > 0) {
+        memcpy(payload_buf, payload, (size_t)copy_len);
+    }
+    payload_buf[copy_len] = '\0';
+
+    ESP_LOGI(TAG, "%s topic=%s payload=%s%s", prefix, topic, payload_buf,
+             payload_len > (int)(sizeof(payload_buf) - 1) ? "..." : "");
+}
+
+static void log_heartbeat(void)
+{
+    int64_t now_us = esp_timer_get_time();
+    uint32_t uptime_s = (uint32_t)(now_us / 1000000LL);
+    time_t now = time(NULL);
+
+    if (now > 1700000000) {
+        struct tm tm_now;
+        localtime_r(&now, &tm_now);
+        char ts[32];
+        strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &tm_now);
+        ESP_LOGI(TAG, "PING uptime=%" PRIu32 "s now=%s link=%d ip=%d mqtt=%d", uptime_s, ts,
+                 ethernet_is_link_up() ? 1 : 0,
+                 ethernet_is_ip_up() ? 1 : 0,
+                 get_mqtt_up() ? 1 : 0);
+    } else {
+        ESP_LOGI(TAG, "PING uptime=%" PRIu32 "s now=unsynced link=%d ip=%d mqtt=%d", uptime_s,
+                 ethernet_is_link_up() ? 1 : 0,
+                 ethernet_is_ip_up() ? 1 : 0,
+                 get_mqtt_up() ? 1 : 0);
+    }
+}
 
 static void build_topic(char *out, size_t out_size, const char *suffix)
 {
@@ -74,6 +115,7 @@ static void mqtt_publish_event(const char *suffix, const char *payload)
 
     char topic[96];
     build_topic(topic, sizeof(topic), suffix);
+    log_payload_preview("TX event", topic, payload, (int)strlen(payload));
     esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 1, 0);
 }
 
@@ -125,33 +167,49 @@ static void publish_status(void)
              status.mqtt_up ? 1 : 0,
              status.index ? 1 : 0);
 
+    log_payload_preview("TX status", topic, payload, (int)strlen(payload));
     esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, 0, 0);
 }
 
 static void handle_command(const char *topic, int topic_len, const char *data, int data_len)
 {
+    char topic_buf[96];
+    int topic_copy_len = topic_len;
+    if (topic_copy_len > (int)(sizeof(topic_buf) - 1)) {
+        topic_copy_len = (int)sizeof(topic_buf) - 1;
+    }
+    memcpy(topic_buf, topic, (size_t)topic_copy_len);
+    topic_buf[topic_copy_len] = '\0';
+
+    log_payload_preview("RX command", topic_buf, data, data_len);
+
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_ENABLE)) {
         driver_set_enabled(payload_to_bool(data, data_len));
+        ESP_LOGI(TAG, "Action: set enabled=%d", driver_is_enabled() ? 1 : 0);
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_PID_ENABLE)) {
         driver_set_pid_enabled(payload_to_bool(data, data_len));
+        ESP_LOGI(TAG, "Action: set pid=%d", driver_is_pid_enabled() ? 1 : 0);
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_TARGET_RPS)) {
         driver_set_target_rps(payload_to_float(data, data_len));
+        ESP_LOGI(TAG, "Action: set target_rps=%.3f", driver_get_target_rps());
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_MANUAL_PWM)) {
         driver_set_manual_pwm(payload_to_float(data, data_len));
+        ESP_LOGI(TAG, "Action: set manual_pwm=%.3f", driver_get_output_duty());
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_DIRECTION)) {
         driver_set_direction(payload_to_bool(data, data_len));
+        ESP_LOGI(TAG, "Action: set direction=%d", driver_get_direction() ? 1 : 0);
         return;
     }
 
@@ -159,6 +217,7 @@ static void handle_command(const char *topic, int topic_len, const char *data, i
         driver_set_home();
         driver_set_position_mode(true);
         driver_set_enabled(true);
+        ESP_LOGI(TAG, "Action: setup/home -> home set, position_mode=1, enabled=1");
         return;
     }
 
@@ -166,26 +225,38 @@ static void handle_command(const char *topic, int topic_len, const char *data, i
         driver_set_position_mode(true);
         driver_set_target_angle_deg(payload_to_float(data, data_len));
         driver_set_enabled(true);
+        ESP_LOGI(TAG, "Action: set target_angle_deg=%.2f (position_mode=1, enabled=1)", driver_get_target_angle_deg());
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_LIMIT_DEG)) {
         driver_set_limit_deg(payload_to_float(data, data_len));
+        ESP_LOGI(TAG, "Action: set limit_deg=%.2f", driver_get_limit_deg());
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_RESET_ENCODER)) {
         encoder_reset_count();
+        ESP_LOGI(TAG, "Action: encoder reset");
         return;
     }
+
+    ESP_LOGW(TAG, "Action: unknown command topic=%s", topic_buf);
 }
 
 static void status_task(void *arg)
 {
     (void)arg;
+    uint32_t ping_elapsed_ms = 0;
 
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(APP_MQTT_STATUS_PERIOD_MS));
+
+        ping_elapsed_ms += APP_MQTT_STATUS_PERIOD_MS;
+        if (ping_elapsed_ms >= APP_LOG_PING_PERIOD_MS) {
+            log_heartbeat();
+            ping_elapsed_ms = 0;
+        }
 
         if (s_mqtt_up) {
             publish_status();

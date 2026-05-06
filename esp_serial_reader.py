@@ -10,6 +10,7 @@ Usage examples:
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import time
 from datetime import datetime
@@ -42,6 +43,9 @@ def parse_args() -> argparse.Namespace:
         default=1.5,
         help="Delay before reconnect attempt in seconds",
     )
+    parser.add_argument(
+        "--no-colors", action="store_true", help="Strip ANSI color codes (useful for file output)"
+    )
     return parser.parse_args()
 
 
@@ -71,8 +75,14 @@ def choose_port(cli_port: str | None) -> str:
     return ports[0].device
 
 
+def strip_ansi_codes(text: str) -> str:
+    """Remove ANSI escape sequences (color codes, etc.) from text."""
+    ansi_pattern = re.compile(r"\x1b\[[0-9;]*m")
+    return ansi_pattern.sub("", text)
+
+
 def run_reader(
-    port: str, baud: int, timeout: float, log_path: str | None, reconnect_delay: float
+    port: str, baud: int, timeout: float, log_path: str | None, reconnect_delay: float, no_colors: bool = False
 ) -> None:
     log_file = open(log_path, "a", encoding="utf-8") if log_path else None
 
@@ -89,10 +99,13 @@ def run_reader(
                         continue
 
                     line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
-                    print(line, flush=True)
+                    
+                    # Strip colors for terminal output if requested or for file output
+                    display_line = strip_ansi_codes(line) if (no_colors or log_file) else line
+                    print(display_line, flush=True)
 
                     if log_file:
-                        log_file.write(line + "\n")
+                        log_file.write(strip_ansi_codes(line) + "\n")
                         log_file.flush()
 
             except serial.SerialException as exc:
@@ -124,6 +137,7 @@ def main() -> None:
         timeout=args.timeout,
         log_path=args.log,
         reconnect_delay=args.reconnect_delay,
+        no_colors=args.no_colors,
     )
 
 

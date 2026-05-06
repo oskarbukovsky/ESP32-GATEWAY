@@ -1,0 +1,44 @@
+[0;32mI (4576) ethernet: Ethernet Started[0m
+[0;32mI (4576) main: System init complete; runtime logs available on USB serial[0m
+[0;32mI (5076) network: Ethernet not linked yet, waiting for cable/link...[0m
+[0;32mI (12576) ethernet: Ethernet Link Up[0m
+[0;32mI (12576) ethernet: Ethernet HW Addr 24:0a:c4:25:c6:bb[0m
+[0;32mI (13076) network: State change: ethernet_link=1[0m
+[0;32mI (13076) network: Ethernet link is up, waiting for DHCP IP...[0m
+[0;32mI (13536) ethernet: Ethernet DHCP lease acquired[0m
+[0;32mI (13536) ethernet: ETHIP:10.0.1.59[0m
+[0;32mI (13536) ethernet: ETHMASK:255.255.255.0[0m
+[0;32mI (13536) ethernet: ETHGW:10.0.1.138[0m
+[0;32mI (13536) ethernet: Starting NTP time sync[0m
+[0;32mI (13546) esp_netif_handlers: eth ip: 10.0.1.59, mask: 255.255.255.0, gw: 10.0.1.138[0m
+[0;32mI (13576) network: State change: ethernet_ip=1[0m
+[0;32mI (13576) network: IP is up, requesting MQTT start[0m
+[0;32mI (14076) network: IP is up, requesting MQTT start[0m
+[0;32mI (14576) network: PING uptime=14s link=1 ip=1 mqtt=0[0m
+[0;32mI (14576) network: IP is up, requesting MQTT start[0m
+[0;32mI (15076) network: IP is up, requesting MQTT start[0m
+[0;32mI (15576) network: IP is up, requesting MQTT start[0m
+[0;32mI (16076) network: IP is up, requesting MQTT start[0m
+[0;32mI (16576) network: IP is up, requesting MQTT start[0m
+[0;32mI (17076) network: IP is up, requesting MQTT start[0m
+[0;32mI (17576) network: IP is up, requesting MQTT start[0m
+[0;32mI (18076) network: IP is up, requesting MQTT start[0m
+[0;32mI (18576) network: IP is up, requesting MQTT start[0m
+[0;32mI (19076) network: IP is up, requesting MQTT start[0m
+[0;32mI (19576) network: IP is up, requesting MQTT start[0m
+[0;32mI (20076) network: IP is up, requesting MQTT start[0m
+[0;32mI (20576) network: IP is up, requesting MQTT start[0m
+[0;32mI (21076) network: IP is up, requesting MQTT start[0m
+[0;32mI (21576) network: IP is up, requesting MQTT start[0m
+[0;32mI (22076) network: IP is up, requesting MQTT start[0m
+[0;32mI (22576) network: IP is up, requesting MQTT start[0m
+[0;31mE (22826) esp-tls: [sock=54] delayed connect error: Software caused connection abort[0m
+[0;31mE (22826) transport_base: Failed to open a new connection: 32772[0m
+[0;31mE (22826) mqtt_client: Error transport connect[0m
+[0;33mW (22836) mqtt: MQTT disconnected[0m
+[0;32mI (23076) network: IP is up, requesting MQTT start[0m
+[0;32mI (23576) mqtt: PING uptime=23s now=2026-05-06 12:34:38 link=1 ip=1 mqtt=0[0m
+[0;32mI (23576) network: IP is up, requesting MQTT start[0m
+[0;32mI (23836) mqtt: Attempting MQTT reconnect (delay 1000 ms)[0m
+[0;32mI (23836) mqtt_client: Client force reconnect requested[0m
+[0;32mI (24076) network: IP is up, requesting MQTT start[0m

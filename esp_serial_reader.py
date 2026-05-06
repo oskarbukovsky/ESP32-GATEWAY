@@ -68,7 +68,7 @@ def choose_port(cli_port: str | None) -> str:
 
 
 
-def run_reader(port: str, baud: int, timeout: float, use_ts: bool, log_path: str | None, reconnect_delay: float) -> None:
+def run_reader(port: str, baud: int, timeout: float, log_path: str | None, reconnect_delay: float) -> None:
     log_file = open(log_path, "a", encoding="utf-8") if log_path else None
 
     try:
@@ -117,7 +117,6 @@ def main() -> None:
         port=port,
         baud=args.baud,
         timeout=args.timeout,
-        use_ts=not args.no_ts,
         log_path=args.log,
         reconnect_delay=args.reconnect_delay,
     )

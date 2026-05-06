@@ -19,13 +19,63 @@ jobs:
           esp_idf_version: v5.0
           target: esp32
 
-      - name: Create GitHub release
-        id: create_release
+      - name: Build firmware
+        run: idf.py build
+
+      - name: Prepare firmware artifacts
+        run: |
+          mkdir -p release_artifacts
+          cp build/ethernet_basic.bin release_artifacts/
+          cp build/bootloader/bootloader.bin release_artifacts/bootloader.bin
+          cp build/partition_table/partition-table.bin release_artifacts/partition-table.bin
+          # Create flash script for users
+          cat > release_artifacts/FLASH.md << 'EOF'
+          # Flashing Instructions
+          
+          ## Requirements
+          - esptool.py: `pip install esptool`
+          - USB-UART adapter connected to ESP32
+          
+          ## Flash Commands
+          
+          Replace `/dev/ttyUSB0` with your serial port (Windows: `COM3`, etc)
+          
+          ### One-line flash (automatic):
+          ```bash
+          esptool.py -p /dev/ttyUSB0 -b 460800 --before default_reset --after hard_reset write_flash \
+            0x1000 bootloader.bin \
+            0x8000 partition-table.bin \
+            0x10000 ethernet_basic.bin
+          ```
+          
+          ### Flash individually:
+          ```bash
+          esptool.py -p /dev/ttyUSB0 write_flash 0x1000 bootloader.bin
+          esptool.py -p /dev/ttyUSB0 write_flash 0x8000 partition-table.bin
+          esptool.py -p /dev/ttyUSB0 write_flash 0x10000 ethernet_basic.bin
+          ```
+          
+          ### Erase before flashing (if experiencing issues):
+          ```bash
+          esptool.py -p /dev/ttyUSB0 erase_flash
+          esptool.py -p /dev/ttyUSB0 -b 460800 write_flash \
+            0x1000 bootloader.bin \
+            0x8000 partition-table.bin \
+            0x10000 ethernet_basic.bin
+          ```
+          
+          ## Monitor Output
+          ```bash
+          esptool.py -p /dev/ttyUSB0 read_mac
+          ```
+          EOF
+
+      - name: Upload firmware to release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-
-      - name: Upload firmware assets to release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: build/*.bin
+          files: |
+            release_artifacts/ethernet_basic.bin
+            release_artifacts/bootloader.bin
+            release_artifacts/partition-table.bin
+            release_artifacts/FLASH.md

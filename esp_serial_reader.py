@@ -102,7 +102,7 @@ def run_reader(
                     line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
                     
                     # Strip colors for terminal output if requested or for file output
-                    display_line = strip_ansi_codes(line) if (no_colors or log_file) else line
+                    display_line = strip_ansi_codes(line) if (no_colors) else line
                     print(display_line, flush=True)
 
                     if log_file:

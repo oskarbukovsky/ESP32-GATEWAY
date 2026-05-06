@@ -1,5 +1,6 @@
 #include <math.h>
 #include <stdbool.h>
+#include <inttypes.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -214,23 +215,41 @@ esp_err_t driver_init(void)
 void driver_set_enabled(bool enabled)
 {
     portENTER_CRITICAL(&s_ctrl_lock);
+    bool was_enabled = s_enabled;
     s_enabled = enabled;
     portEXIT_CRITICAL(&s_ctrl_lock);
-}
+    if (was_enabled != enabled) {
+        if (enabled) {
+            ESP_LOGI(TAG, "Motion start: enabled");
+        } else {
+            ESP_LOGI(TAG, "Motion stop: disabled");
+        }
+    }
+
 
 void driver_set_pid_enabled(bool enabled)
 {
     portENTER_CRITICAL(&s_ctrl_lock);
+    bool was_pid = s_pid_enabled;
     s_pid_enabled = enabled;
     portEXIT_CRITICAL(&s_ctrl_lock);
-}
+    if (was_pid != enabled) {
+        ESP_LOGI(TAG, "PID %s", enabled ? "enabled" : "disabled");
+    }
+
+
 
 void driver_set_position_mode(bool enabled)
 {
     portENTER_CRITICAL(&s_ctrl_lock);
+    bool was_pos_mode = s_position_mode;
     s_position_mode = enabled;
     portEXIT_CRITICAL(&s_ctrl_lock);
-}
+    if (was_pos_mode != enabled) {
+        ESP_LOGI(TAG, "Mode: %s", enabled ? "position" : "speed");
+    }
+
+
 
 void driver_set_target_rps(float target_rps)
 {
@@ -238,21 +257,32 @@ void driver_set_target_rps(float target_rps)
     s_target_rps = target_rps;
     s_position_mode = false;
     portEXIT_CRITICAL(&s_ctrl_lock);
-}
+    ESP_LOGI(TAG, "Target speed: %.3f RPS", target_rps);
+
+
 
 void driver_set_manual_pwm(float duty_percent)
 {
     portENTER_CRITICAL(&s_ctrl_lock);
     s_manual_duty = duty_percent;
     portEXIT_CRITICAL(&s_ctrl_lock);
-}
+    if (duty_percent != 0.0f) {
+        ESP_LOGI(TAG, "Manual PWM: %.2f%%", duty_percent);
+    }
+
+
 
 void driver_set_direction(bool forward)
 {
     portENTER_CRITICAL(&s_ctrl_lock);
+    bool was_forward = s_direction_forward;
     s_direction_forward = forward;
     portEXIT_CRITICAL(&s_ctrl_lock);
-}
+    if (was_forward != forward) {
+        ESP_LOGI(TAG, "Direction: %s", forward ? "forward" : "reverse");
+    }
+
+
 
 void driver_set_home(void)
 {
@@ -262,24 +292,39 @@ void driver_set_home(void)
     s_current_angle_deg = 0.0f;
     s_limit_hit = false;
     portEXIT_CRITICAL(&s_ctrl_lock);
+    ESP_LOGI(TAG, "Home position set at count=%" PRId32, s_home_count);
 }
+
+
 
 void driver_set_target_angle_deg(float target_deg)
 {
     portENTER_CRITICAL(&s_ctrl_lock);
-    s_target_angle_deg = clampf(target_deg, -s_limit_deg, s_limit_deg);
+    float clamped = clampf(target_deg, -s_limit_deg, s_limit_deg);
+    s_target_angle_deg = clamped;
     s_position_mode = true;
-    s_limit_hit = (s_target_angle_deg != target_deg);
+    s_limit_hit = (clamped != target_deg);
     portEXIT_CRITICAL(&s_ctrl_lock);
+    if (s_limit_hit) {
+        ESP_LOGI(TAG, "Target angle: %.2f deg (clamped from %.2f, limit=%.2f)", clamped, target_deg, s_limit_deg);
+    } else {
+        ESP_LOGI(TAG, "Target angle: %.2f deg", target_deg);
+    }
 }
+
+
 
 void driver_set_limit_deg(float limit_deg)
 {
     portENTER_CRITICAL(&s_ctrl_lock);
-    s_limit_deg = (limit_deg > 0.0f) ? limit_deg : APP_POSITION_LIMIT_DEG;
+    float new_limit = (limit_deg > 0.0f) ? limit_deg : APP_POSITION_LIMIT_DEG;
+    s_limit_deg = new_limit;
     s_target_angle_deg = clampf(s_target_angle_deg, -s_limit_deg, s_limit_deg);
     portEXIT_CRITICAL(&s_ctrl_lock);
+    ESP_LOGI(TAG, "Position limit set: %.2f deg", new_limit);
 }
+
+
 
 bool driver_is_enabled(void)
 {

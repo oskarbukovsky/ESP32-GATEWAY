@@ -41,8 +41,8 @@
 
 /* MQTT setup */
 #define APP_MQTT_BROKER_URI          "mqtts://l9f0a4f9.ala.eu-central-1.emqxsl.com:8883"
-#define APP_MQTT_USERNAME            ""
-#define APP_MQTT_PASSWORD            ""
+#define APP_MQTT_USERNAME            "mqtt-rotator-boi8k"
+#define APP_MQTT_PASSWORD            "eEfaGhBG64qLK3S"
 #define APP_MQTT_TOPIC_PREFIX        "gateway/motor"
 #define APP_MQTT_STATUS_PERIOD_MS    1000
 #define APP_NETWORK_FAILSAFE_MS      500

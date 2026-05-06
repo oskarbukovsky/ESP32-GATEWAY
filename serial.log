@@ -1,0 +1,115 @@
+╭─ [janos@OSKAR-DESKTOP]
+├─ [C:\Users\janos\Desktop\ESP32-GATEWAY]
+╰──▸python3 esp_serial_reader.py --port COM5
+Connected to COM5 @ 115200 baud. Press Ctrl+C to stop.
+ets Jun  8 2016 00:22:57
+
+rst:0x1 (POWERON_RESET),boot:0x1a (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:6992
+load:0x40078000,len:15452
+load:0x40080400,len:3840
+entry 0x4008064c
+I (27) boot: ESP-IDF v5.0 2nd stage bootloader
+I (27) boot: compile time 13:29:07
+I (27) boot: chip revision: v1.0
+I (29) boot_comm: chip revision: 1, min. bootloader chip revision: 0
+I (36) boot.esp32: SPI Speed      : 40MHz
+I (41) boot.esp32: SPI Mode       : DIO
+I (46) boot.esp32: SPI Flash Size : 2MB
+I (50) boot: Enabling RNG early entropy source...
+I (56) boot: Partition Table:
+I (59) boot: ## Label            Usage          Type ST Offset   Length
+I (66) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (74) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+I (81) boot:  2 factory          factory app      00 00 00010000 00100000
+I (89) boot: End of partition table
+I (93) boot_comm: chip revision: 1, min. application chip revision: 0
+I (100) esp_image: segment 0: paddr=00010020 vaddr=3f400020 size=22c34h (142388) map
+I (160) esp_image: segment 1: paddr=00032c5c vaddr=3ffb0000 size=027d8h ( 10200) load
+I (164) esp_image: segment 2: paddr=0003543c vaddr=40080000 size=0abdch ( 43996) load
+I (184) esp_image: segment 3: paddr=00040020 vaddr=400d0020 size=62818h (403480) map
+I (330) esp_image: segment 4: paddr=000a2840 vaddr=4008abdc size=02230h (  8752) load
+I (334) esp_image: segment 5: paddr=000a4a78 vaddr=50000000 size=00010h (    16) load
+I (343) boot: Loaded app from partition at offset 0x10000
+I (343) boot: Disabling RNG early entropy source...
+I (359) cpu_start: Pro cpu up.
+I (359) cpu_start: Starting app cpu, entry point is 0x40081224
+I (0) cpu_start: App cpu up.
+I (373) cpu_start: Pro cpu start user code
+I (373) cpu_start: cpu freq: 160000000 Hz
+I (373) cpu_start: Application information:
+I (378) cpu_start: Project name:     ethernet_basic
+I (383) cpu_start: App version:      79ae728
+I (388) cpu_start: Compile time:     May  6 2026 13:29:01
+I (394) cpu_start: ELF file SHA256:  7f0ec1bff2a2322e...
+I (400) cpu_start: ESP-IDF:          v5.0
+I (405) heap_init: Initializing. RAM available for dynamic allocation:
+I (412) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM
+I (418) heap_init: At 3FFB49F8 len 0002B608 (173 KiB): DRAM
+I (425) heap_init: At 3FFE0440 len 00003AE0 (14 KiB): D/IRAM
+I (431) heap_init: At 3FFE4350 len 0001BCB0 (111 KiB): D/IRAM
+I (437) heap_init: At 4008CE0C len 000131F4 (76 KiB): IRAM
+I (445) spi_flash: detected chip: gd
+I (448) spi_flash: flash io: dio
+W (452) spi_flash: Detected size(4096k) larger than the size in the binary image header(2048k). Using the size in the binary image header.
+I (466) cpu_start: Starting scheduler on PRO CPU.
+I (0) cpu_start: Starting scheduler on APP CPU.
+I (476) main: Boot start: initializing encoder
+I (486) gpio: GPIO[32]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:3
+I (486) gpio: GPIO[33]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:3
+I (496) gpio: GPIO[35]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:1
+I (506) encoder: Encoder initialized (PPR=1024, CPR=4096)
+I (516) main: Initializing driver
+I (516) driver: Driver initialized on GPIOs 25 and 26
+I (526) main: Initializing network stack (Ethernet + MQTT manager)
+I (536) ethernet: Initializing Ethernet stack
+I (556) system_api: Base MAC address is not set
+I (556) system_api: read default base MAC address from EFUSE
+I (576) esp_eth.netif.netif_glue: 24:0a:c4:25:c6:bb
+I (576) esp_eth.netif.netif_glue: ethernet attached to netif
+I (2276) ethernet: Ethernet Started
+I (2276) ethernet: Ethernet Link Up
+I (2276) ethernet: Ethernet HW Addr 24:0a:c4:25:c6:bb
+I (2276) main: System init complete; runtime logs available on USB serial
+I (2776) network: State change: ethernet_link=1
+I (2776) network: Ethernet link is up, waiting for DHCP IP...
+I (3036) ethernet: Ethernet DHCP lease acquired
+I (3036) ethernet: ETHIP:10.0.1.59
+I (3036) ethernet: ETHMASK:255.255.255.0
+I (3036) ethernet: ETHGW:10.0.1.138
+I (3036) ethernet: Starting NTP time sync
+I (3046) esp_netif_handlers: eth ip: 10.0.1.59, mask: 255.255.255.0, gw: 10.0.1.138
+I (3276) network: State change: ethernet_ip=1
+I (3276) network: IP is up, requesting MQTT start
+I (3776) network: IP is up, requesting MQTT start
+W (3936) mqtt_client: Connection refused, bad username or password
+E (3936) mqtt_client: MQTT connect failed
+W (3936) mqtt: MQTT disconnected
+I (4276) network: IP is up, requesting MQTT start
+I (4776) network: IP is up, requesting MQTT start
+I (4936) mqtt: Attempting MQTT reconnect (delay 1000 ms)
+I (4936) mqtt_client: Client force reconnect requested
+I (5276) network: IP is up, requesting MQTT start
+W (5546) mqtt_client: Connection refused, bad username or password
+E (5546) mqtt_client: MQTT connect failed
+W (5546) mqtt: MQTT disconnected
+I (5776) network: IP is up, requesting MQTT start
+I (6276) network: IP is up, requesting MQTT start
+I (6546) mqtt: Attempting MQTT reconnect (delay 1000 ms)
+I (6546) mqtt_client: Client force reconnect requested
+I (6776) network: IP is up, requesting MQTT start
+W (7166) mqtt_client: Connection refused, bad username or password
+E (7166) mqtt_client: MQTT connect failed
+W (7166) mqtt: MQTT disconnected
+I (7276) network: IP is up, requesting MQTT start
+I (7776) network: IP is up, requesting MQTT start
+I (8166) mqtt: Attempting MQTT reconnect (delay 1000 ms)
+I (8166) mqtt_client: Client force reconnect requested
+I (8276) network: IP is up, requesting MQTT start
+W (8766) mqtt_client: Connection refused, bad username or password
+E (8766) mqtt_client: MQTT connect failed
+I (8776) network: IP is up, requesting MQTT start
+W (8776) mqtt: MQTT disconnected

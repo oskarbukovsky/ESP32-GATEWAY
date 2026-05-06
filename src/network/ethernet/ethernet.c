@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <time.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -7,6 +8,7 @@
 #include "esp_eth.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_sntp.h"
 
 #include "app_config.h"
 #include "network/ethernet/ethernet.h"
@@ -61,12 +63,29 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t
     (void)event_base;
     (void)event_id;
 
-    ESP_LOGI(TAG, "Ethernet Got IP Address");
+    ESP_LOGI(TAG, "Ethernet DHCP lease acquired");
     ESP_LOGI(TAG, "ETHIP:" IPSTR, IP2STR(&ip_info->ip));
     ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
     ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
 
+    /* Start SNTP for time synchronization */
+    ESP_LOGI(TAG, "Starting NTP time sync");
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_init();
+
     s_ip_up = true;
+}
+
+static void lost_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+{
+    (void)arg;
+    (void)event_base;
+    (void)event_id;
+    (void)event_data;
+
+    ESP_LOGW(TAG, "Ethernet lost IP address");
+    s_ip_up = false;
 }
 
 static esp_err_t start_ethernet(void)
@@ -141,10 +160,12 @@ esp_err_t ethernet_init(void)
         return ESP_OK;
     }
 
+    ESP_LOGI(TAG, "Initializing Ethernet stack");
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_LOST_IP, &lost_ip_event_handler, NULL));
     ESP_ERROR_CHECK(start_ethernet());
 
     s_started = true;

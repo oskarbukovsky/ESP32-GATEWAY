@@ -38,9 +38,22 @@ static void mqtt_reconnect_task(void *arg);
 static void set_mqtt_up(bool v);
 static bool get_mqtt_up(void);
 
+static void get_time_str(char *buf, size_t buf_len)
+{
+    time_t now = time(NULL);
+    if (now > 1700000000) {
+        struct tm tm_now;
+        localtime_r(&now, &tm_now);
+        strftime(buf, buf_len, "%Y-%m-%d %H:%M:%S", &tm_now);
+    } else {
+        snprintf(buf, buf_len, "<no-sync>");
+    }
+}
+
 static void log_payload_preview(const char *prefix, const char *topic, const char *payload, int payload_len)
 {
     char payload_buf[96];
+    char time_str[32];
     int copy_len = payload_len;
     if (copy_len > (int)(sizeof(payload_buf) - 1)) {
         copy_len = (int)sizeof(payload_buf) - 1;
@@ -50,7 +63,8 @@ static void log_payload_preview(const char *prefix, const char *topic, const cha
     }
     payload_buf[copy_len] = '\0';
 
-    ESP_LOGI(TAG, "%s topic=%s payload=%s%s", prefix, topic, payload_buf,
+    get_time_str(time_str, sizeof(time_str));
+    ESP_LOGI(TAG, "[%s] %s topic=%s payload=%s%s", time_str, prefix, topic, payload_buf,
              payload_len > (int)(sizeof(payload_buf) - 1) ? "..." : "");
 }
 
@@ -172,6 +186,7 @@ static void publish_status(void)
 static void handle_command(const char *topic, int topic_len, const char *data, int data_len)
 {
     char topic_buf[96];
+    char time_str[32];
     int topic_copy_len = topic_len;
     if (topic_copy_len > (int)(sizeof(topic_buf) - 1)) {
         topic_copy_len = (int)sizeof(topic_buf) - 1;
@@ -179,35 +194,36 @@ static void handle_command(const char *topic, int topic_len, const char *data, i
     memcpy(topic_buf, topic, (size_t)topic_copy_len);
     topic_buf[topic_copy_len] = '\0';
 
+    get_time_str(time_str, sizeof(time_str));
     log_payload_preview("RX command", topic_buf, data, data_len);
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_ENABLE)) {
         driver_set_enabled(payload_to_bool(data, data_len));
-        ESP_LOGI(TAG, "Action: set enabled=%d", driver_is_enabled() ? 1 : 0);
+        ESP_LOGI(TAG, "[%s] Action: set enabled=%d", time_str, driver_is_enabled() ? 1 : 0);
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_PID_ENABLE)) {
         driver_set_pid_enabled(payload_to_bool(data, data_len));
-        ESP_LOGI(TAG, "Action: set pid=%d", driver_is_pid_enabled() ? 1 : 0);
+        ESP_LOGI(TAG, "[%s] Action: set pid=%d", time_str, driver_is_pid_enabled() ? 1 : 0);
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_TARGET_RPS)) {
         driver_set_target_rps(payload_to_float(data, data_len));
-        ESP_LOGI(TAG, "Action: set target_rps=%.3f", driver_get_target_rps());
+        ESP_LOGI(TAG, "[%s] Action: set target_rps=%.3f", time_str, driver_get_target_rps());
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_MANUAL_PWM)) {
         driver_set_manual_pwm(payload_to_float(data, data_len));
-        ESP_LOGI(TAG, "Action: set manual_pwm=%.3f", driver_get_output_duty());
+        ESP_LOGI(TAG, "[%s] Action: set manual_pwm=%.3f", time_str, driver_get_output_duty());
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_DIRECTION)) {
         driver_set_direction(payload_to_bool(data, data_len));
-        ESP_LOGI(TAG, "Action: set direction=%d", driver_get_direction() ? 1 : 0);
+        ESP_LOGI(TAG, "[%s] Action: set direction=%d", time_str, driver_get_direction() ? 1 : 0);
         return;
     }
 
@@ -215,7 +231,7 @@ static void handle_command(const char *topic, int topic_len, const char *data, i
         driver_set_home();
         driver_set_position_mode(true);
         driver_set_enabled(true);
-        ESP_LOGI(TAG, "Action: setup/home -> home set, position_mode=1, enabled=1");
+        ESP_LOGI(TAG, "[%s] Action: setup/home -> home set, position_mode=1, enabled=1", time_str);
         return;
     }
 
@@ -223,23 +239,23 @@ static void handle_command(const char *topic, int topic_len, const char *data, i
         driver_set_position_mode(true);
         driver_set_target_angle_deg(payload_to_float(data, data_len));
         driver_set_enabled(true);
-        ESP_LOGI(TAG, "Action: set target_angle_deg=%.2f (position_mode=1, enabled=1)", driver_get_target_angle_deg());
+        ESP_LOGI(TAG, "[%s] Action: set target_angle_deg=%.2f (position_mode=1, enabled=1)", time_str, driver_get_target_angle_deg());
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_LIMIT_DEG)) {
         driver_set_limit_deg(payload_to_float(data, data_len));
-        ESP_LOGI(TAG, "Action: set limit_deg=%.2f", driver_get_limit_deg());
+        ESP_LOGI(TAG, "[%s] Action: set limit_deg=%.2f", time_str, driver_get_limit_deg());
         return;
     }
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_RESET_ENCODER)) {
         encoder_reset_count();
-        ESP_LOGI(TAG, "Action: encoder reset");
+        ESP_LOGI(TAG, "[%s] Action: encoder reset", time_str);
         return;
     }
 
-    ESP_LOGW(TAG, "Action: unknown command topic=%s", topic_buf);
+    ESP_LOGW(TAG, "[%s] Action: unknown command topic=%s", time_str, topic_buf);
 }
 
 static void status_task(void *arg)

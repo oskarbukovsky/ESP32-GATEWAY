@@ -4,6 +4,7 @@
 Usage examples:
   python esp_serial_reader.py --port COM5
   python esp_serial_reader.py --port COM5 --baud 115200 --log esp.log
+  python esp_serial_reader.py --port COM5 --no-colors          # Strip colors from terminal
   python esp_serial_reader.py --list
 """
 

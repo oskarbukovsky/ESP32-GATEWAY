@@ -17,6 +17,7 @@ static const char *TAG = "ethernet";
 static bool s_link_up = false;
 static bool s_ip_up = false;
 static bool s_started = false;
+static bool s_sntp_started = false;
 static esp_netif_t *s_eth_netif = NULL;
 static esp_eth_netif_glue_handle_t s_eth_glue = NULL;
 
@@ -40,6 +41,12 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t ev
         ESP_LOGW(TAG, "Ethernet Link Down");
         s_link_up = false;
         s_ip_up = false;
+        /* Stop SNTP if it was running to avoid network callbacks while offline */
+        if (s_sntp_started) {
+            ESP_LOGI(TAG, "Stopping NTP time sync due to link down");
+            sntp_stop();
+            s_sntp_started = false;
+        }
         break;
     case ETHERNET_EVENT_START:
         ESP_LOGI(TAG, "Ethernet Started");
@@ -48,6 +55,11 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t ev
         ESP_LOGW(TAG, "Ethernet Stopped");
         s_link_up = false;
         s_ip_up = false;
+        if (s_sntp_started) {
+            ESP_LOGI(TAG, "Stopping NTP time sync due to ethernet stop");
+            sntp_stop();
+            s_sntp_started = false;
+        }
         break;
     default:
         break;
@@ -70,9 +82,14 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t
 
     /* Start SNTP for time synchronization */
     ESP_LOGI(TAG, "Starting NTP time sync");
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
-    sntp_init();
+    if (!s_sntp_started) {
+        sntp_setoperatingmode(SNTP_OPMODE_POLL);
+        sntp_setservername(0, "pool.ntp.org");
+        sntp_init();
+        s_sntp_started = true;
+    } else {
+        ESP_LOGI(TAG, "SNTP already started");
+    }
 
     s_ip_up = true;
 }
@@ -86,6 +103,11 @@ static void lost_ip_event_handler(void *arg, esp_event_base_t event_base, int32_
 
     ESP_LOGW(TAG, "Ethernet lost IP address");
     s_ip_up = false;
+    if (s_sntp_started) {
+        ESP_LOGI(TAG, "Stopping NTP time sync due to lost IP");
+        sntp_stop();
+        s_sntp_started = false;
+    }
 }
 
 static esp_err_t start_ethernet(void)

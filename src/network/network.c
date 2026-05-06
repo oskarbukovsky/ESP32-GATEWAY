@@ -11,6 +11,7 @@
 #include "network/ethernet/ethernet.h"
 #include "network/mqtt/mqtt.h"
 #include "network/network.h"
+#include "utils/utils.h"
 
 static bool s_started = false;
 static const char *TAG = "network";
@@ -45,8 +46,10 @@ static void network_task(void *arg)
         ping_elapsed_ms += APP_NETWORK_FAILSAFE_MS;
         if (ping_elapsed_ms >= APP_LOG_PING_PERIOD_MS) {
             uint32_t uptime_s = (uint32_t)(xTaskGetTickCount() / configTICK_RATE_HZ);
-            ESP_LOGI(TAG, "PING uptime=%" PRIu32 "s link=%d ip=%d mqtt=%d", uptime_s,
-                     link_up ? 1 : 0, ip_up ? 1 : 0, mqtt_up ? 1 : 0);
+            char now_str[32];
+            utils_get_time_str(now_str, sizeof(now_str));
+            ESP_LOGI(TAG, "PING uptime=%" PRIu32 "s now=%s link=%d ip=%d mqtt=%d", uptime_s,
+                     now_str, link_up ? 1 : 0, ip_up ? 1 : 0, mqtt_up ? 1 : 0);
             ping_elapsed_ms = 0;
         }
 

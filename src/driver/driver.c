@@ -30,10 +30,12 @@ static portMUX_TYPE s_ctrl_lock = portMUX_INITIALIZER_UNLOCKED;
 
 static float clampf(float val, float min_val, float max_val)
 {
-    if (val < min_val) {
+    if (val < min_val)
+    {
         return min_val;
     }
-    if (val > max_val) {
+    if (val > max_val)
+    {
         return max_val;
     }
     return val;
@@ -70,24 +72,29 @@ static void driver_task(void *arg)
     float i_term = 0.0f;
     float prev_error = 0.0f;
 
-    if (samples <= 0) {
+    if (samples <= 0)
+    {
         ESP_LOGE(TAG, "Invalid SPWM config: carrier=%dHz sine=%dHz", APP_PWM_CARRIER_HZ, APP_PWM_SINE_HZ);
         vTaskDelete(NULL);
     }
 
-    if (control_period_ms == 0U) {
+    if (control_period_ms == 0U)
+    {
         control_period_ms = 1U;
     }
     control_delay = pdMS_TO_TICKS(control_period_ms);
-    if (control_delay == 0) {
+    if (control_delay == 0)
+    {
         control_delay = 1;
     }
 
-    if ((APP_PWM_CARRIER_HZ % APP_PWM_SINE_HZ) != 0) {
+    if ((APP_PWM_CARRIER_HZ % APP_PWM_SINE_HZ) != 0)
+    {
         ESP_LOGW(TAG, "Carrier (%dHz) is not divisible by sine (%dHz), waveform may jitter", APP_PWM_CARRIER_HZ, APP_PWM_SINE_HZ);
     }
 
-    while (true) {
+    while (true)
+    {
         vTaskDelay(control_delay);
 
         bool enabled;
@@ -114,28 +121,35 @@ static void driver_task(void *arg)
         float current_angle_deg = count_to_angle_deg(count);
         bool limit_hit = false;
 
-        if (position_mode) {
+        if (position_mode)
+        {
             float clamped_target = clampf(target_angle_deg, -limit_deg, limit_deg);
-            if (fabsf(clamped_target - target_angle_deg) > 0.001f) {
+            if (fabsf(clamped_target - target_angle_deg) > 0.001f)
+            {
                 limit_hit = true;
             }
 
             float pos_error = clamped_target - current_angle_deg;
-            if (fabsf(pos_error) <= APP_POSITION_TOLERANCE_DEG) {
+            if (fabsf(pos_error) <= APP_POSITION_TOLERANCE_DEG)
+            {
                 target_rps = 0.0f;
-            } else {
+            }
+            else
+            {
                 dir_forward = (pos_error >= 0.0f);
                 target_rps = clampf(fabsf(pos_error) * APP_POSITION_KP, 0.0f, APP_POSITION_MAX_RPS);
             }
-
         }
 
         float amplitude_percent = 0.0f;
-        if (!enabled) {
+        if (!enabled)
+        {
             i_term = 0.0f;
             prev_error = 0.0f;
             amplitude_percent = 0.0f;
-        } else if (pid_enabled) {
+        }
+        else if (pid_enabled)
+        {
             const float dt_s = 1.0f / (float)APP_PWM_CARRIER_HZ;
             float measured_rps = encoder_get_speed_rps();
             float error = target_rps - measured_rps;
@@ -145,11 +159,14 @@ static void driver_task(void *arg)
             amplitude_percent = clampf((APP_PID_KP * error) + (APP_PID_KI * i_term) + (APP_PID_KD * d_term),
                                        APP_PWM_DUTY_MIN_PERCENT,
                                        APP_PWM_DUTY_MAX_PERCENT);
-        } else {
+        }
+        else
+        {
             amplitude_percent = clampf(manual_duty, APP_PWM_DUTY_MIN_PERCENT, APP_PWM_DUTY_MAX_PERCENT);
         }
 
-        if (position_mode && !enabled) {
+        if (position_mode && !enabled)
+        {
             amplitude_percent = 0.0f;
         }
 
@@ -158,7 +175,8 @@ static void driver_task(void *arg)
         float samp_a = (sinf(phase) + 1.0f) * 0.5f;
         float samp_b = (sinf(phase + phase_shift) + 1.0f) * 0.5f;
 
-        if (limit_hit) {
+        if (limit_hit)
+        {
             amplitude_percent = 0.0f;
         }
 
@@ -218,14 +236,18 @@ void driver_set_enabled(bool enabled)
     bool was_enabled = s_enabled;
     s_enabled = enabled;
     portEXIT_CRITICAL(&s_ctrl_lock);
-    if (was_enabled != enabled) {
-        if (enabled) {
+    if (was_enabled != enabled)
+    {
+        if (enabled)
+        {
             ESP_LOGI(TAG, "Motion start: enabled");
-        } else {
+        }
+        else
+        {
             ESP_LOGI(TAG, "Motion stop: disabled");
         }
     }
-
+}
 
 void driver_set_pid_enabled(bool enabled)
 {
@@ -233,11 +255,11 @@ void driver_set_pid_enabled(bool enabled)
     bool was_pid = s_pid_enabled;
     s_pid_enabled = enabled;
     portEXIT_CRITICAL(&s_ctrl_lock);
-    if (was_pid != enabled) {
+    if (was_pid != enabled)
+    {
         ESP_LOGI(TAG, "PID %s", enabled ? "enabled" : "disabled");
     }
-
-
+}
 
 void driver_set_position_mode(bool enabled)
 {
@@ -245,11 +267,11 @@ void driver_set_position_mode(bool enabled)
     bool was_pos_mode = s_position_mode;
     s_position_mode = enabled;
     portEXIT_CRITICAL(&s_ctrl_lock);
-    if (was_pos_mode != enabled) {
+    if (was_pos_mode != enabled)
+    {
         ESP_LOGI(TAG, "Mode: %s", enabled ? "position" : "speed");
     }
-
-
+}
 
 void driver_set_target_rps(float target_rps)
 {
@@ -258,19 +280,14 @@ void driver_set_target_rps(float target_rps)
     s_position_mode = false;
     portEXIT_CRITICAL(&s_ctrl_lock);
     ESP_LOGI(TAG, "Target speed: %.3f RPS", target_rps);
-
-
-
+}
 void driver_set_manual_pwm(float duty_percent)
 {
     portENTER_CRITICAL(&s_ctrl_lock);
     s_manual_duty = duty_percent;
     portEXIT_CRITICAL(&s_ctrl_lock);
-    if (duty_percent != 0.0f) {
-        ESP_LOGI(TAG, "Manual PWM: %.2f%%", duty_percent);
-    }
-
-
+    ESP_LOGI(TAG, "Manual PWM: %.2f%%", duty_percent);
+}
 
 void driver_set_direction(bool forward)
 {
@@ -278,11 +295,8 @@ void driver_set_direction(bool forward)
     bool was_forward = s_direction_forward;
     s_direction_forward = forward;
     portEXIT_CRITICAL(&s_ctrl_lock);
-    if (was_forward != forward) {
-        ESP_LOGI(TAG, "Direction: %s", forward ? "forward" : "reverse");
-    }
-
-
+    ESP_LOGI(TAG, "Direction: %s", forward ? "forward" : "reverse");
+}
 
 void driver_set_home(void)
 {
@@ -295,8 +309,6 @@ void driver_set_home(void)
     ESP_LOGI(TAG, "Home position set at count=%" PRId32, s_home_count);
 }
 
-
-
 void driver_set_target_angle_deg(float target_deg)
 {
     portENTER_CRITICAL(&s_ctrl_lock);
@@ -305,14 +317,15 @@ void driver_set_target_angle_deg(float target_deg)
     s_position_mode = true;
     s_limit_hit = (clamped != target_deg);
     portEXIT_CRITICAL(&s_ctrl_lock);
-    if (s_limit_hit) {
+    if (s_limit_hit)
+    {
         ESP_LOGI(TAG, "Target angle: %.2f deg (clamped from %.2f, limit=%.2f)", clamped, target_deg, s_limit_deg);
-    } else {
+    }
+    else
+    {
         ESP_LOGI(TAG, "Target angle: %.2f deg", target_deg);
     }
 }
-
-
 
 void driver_set_limit_deg(float limit_deg)
 {
@@ -323,8 +336,6 @@ void driver_set_limit_deg(float limit_deg)
     portEXIT_CRITICAL(&s_ctrl_lock);
     ESP_LOGI(TAG, "Position limit set: %.2f deg", new_limit);
 }
-
-
 
 bool driver_is_enabled(void)
 {

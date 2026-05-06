@@ -6,12 +6,13 @@ idf_component_register(SRCS
                        "network/mqtt/mqtt.c"
                        "network/mqtt/mqtt_config.c"
                        "network/network.c"
+                       "utils/utils.c"
                        INCLUDE_DIRS "."
                        "encoder"
                        "driver"
                        "network/ethernet"
                        "network/mqtt"
                        "network"
+                       "utils"
                        EMBED_TXTFILES "../emqxsl-ca.crt"
                        REQUIRES driver esp_netif esp_eth mqtt lwip)
-

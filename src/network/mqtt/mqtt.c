@@ -4,7 +4,6 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
-#include <time.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -19,6 +18,7 @@
 #include "network/mqtt/mqtt.h"
 #include "network/mqtt/mqtt_schema.h"
 #include "network/mqtt/mqtt_config.h"
+#include "utils/utils.h"
 #include "freertos/semphr.h"
 
 extern const char emqxsl_ca_crt_start[] asm("_binary_emqxsl_ca_crt_start");
@@ -40,18 +40,6 @@ static void mqtt_reconnect_task(void *arg);
 static void set_mqtt_up(bool v);
 static bool get_mqtt_up(void);
 
-static void get_time_str(char *buf, size_t buf_len)
-{
-    time_t now = time(NULL);
-    if (now > 1700000000) {
-        struct tm tm_now;
-        localtime_r(&now, &tm_now);
-        strftime(buf, buf_len, "%Y-%m-%d %H:%M:%S", &tm_now);
-    } else {
-        snprintf(buf, buf_len, "<no-sync>");
-    }
-}
-
 static void log_payload_preview(const char *prefix, const char *topic, const char *payload, int payload_len)
 {
     char payload_buf[96];
@@ -65,31 +53,9 @@ static void log_payload_preview(const char *prefix, const char *topic, const cha
     }
     payload_buf[copy_len] = '\0';
 
-    get_time_str(time_str, sizeof(time_str));
+    utils_get_time_str(time_str, sizeof(time_str));
     ESP_LOGI(TAG, "[%s] %s topic=%s payload=%s%s", time_str, prefix, topic, payload_buf,
              payload_len > (int)(sizeof(payload_buf) - 1) ? "..." : "");
-}
-
-static void log_heartbeat(void)
-{
-    uint32_t uptime_s = (uint32_t)(xTaskGetTickCount() / configTICK_RATE_HZ);
-    time_t now = time(NULL);
-
-    if (now > 1700000000) {
-        struct tm tm_now;
-        localtime_r(&now, &tm_now);
-        char ts[32];
-        strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &tm_now);
-        ESP_LOGI(TAG, "PING uptime=%" PRIu32 "s now=%s link=%d ip=%d mqtt=%d", uptime_s, ts,
-                 ethernet_is_link_up() ? 1 : 0,
-                 ethernet_is_ip_up() ? 1 : 0,
-                 get_mqtt_up() ? 1 : 0);
-    } else {
-        ESP_LOGI(TAG, "PING uptime=%" PRIu32 "s now=unsynced link=%d ip=%d mqtt=%d", uptime_s,
-                 ethernet_is_link_up() ? 1 : 0,
-                 ethernet_is_ip_up() ? 1 : 0,
-                 get_mqtt_up() ? 1 : 0);
-    }
 }
 
 static void build_topic(char *out, size_t out_size, const char *suffix)
@@ -196,7 +162,7 @@ static void handle_command(const char *topic, int topic_len, const char *data, i
     memcpy(topic_buf, topic, (size_t)topic_copy_len);
     topic_buf[topic_copy_len] = '\0';
 
-    get_time_str(time_str, sizeof(time_str));
+    utils_get_time_str(time_str, sizeof(time_str));
     log_payload_preview("RX command", topic_buf, data, data_len);
 
     if (topic_equals(topic, topic_len, MQTT_TOPIC_CMD_ENABLE)) {
@@ -263,16 +229,9 @@ static void handle_command(const char *topic, int topic_len, const char *data, i
 static void status_task(void *arg)
 {
     (void)arg;
-    uint32_t ping_elapsed_ms = 0;
 
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(APP_MQTT_STATUS_PERIOD_MS));
-
-        ping_elapsed_ms += APP_MQTT_STATUS_PERIOD_MS;
-        if (ping_elapsed_ms >= APP_LOG_PING_PERIOD_MS) {
-            log_heartbeat();
-            ping_elapsed_ms = 0;
-        }
 
         if (s_mqtt_up) {
             publish_status();

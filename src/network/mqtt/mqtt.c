@@ -10,7 +10,6 @@
 #include "freertos/task.h"
 #include "esp_event.h"
 #include "esp_log.h"
-#include "esp_timer.h"
 #include "mqtt_client.h"
 
 #include "app_config.h"
@@ -57,8 +56,7 @@ static void log_payload_preview(const char *prefix, const char *topic, const cha
 
 static void log_heartbeat(void)
 {
-    int64_t now_us = esp_timer_get_time();
-    uint32_t uptime_s = (uint32_t)(now_us / 1000000LL);
+    uint32_t uptime_s = (uint32_t)(xTaskGetTickCount() / configTICK_RATE_HZ);
     time_t now = time(NULL);
 
     if (now > 1700000000) {
